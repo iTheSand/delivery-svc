@@ -1,0 +1,102 @@
+version: "3.2"
+
+services:
+  django_app:
+    container_name: django-app
+    build: .
+    image: django_app
+    restart: always
+    command: python manage.py runserver 0.0.0.0:8080
+    volumes:
+      - ".:/usr/src/app"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - django-db
+    networks:
+      - poi_network
+    env_file:
+      - .env
+
+  celery-worker:
+    container_name: celery-worker
+    image: django_app
+    restart: always
+    command: python -m celery -A delivery worker -l info --concurrency=2
+    volumes:
+      - ".:/usr/src/app"
+    depends_on:
+      - django-db
+      - redis
+    networks:
+      - poi_network
+    environment:
+      CELERY_BROKER: redis://delivery-redis:6379
+    env_file:
+      - .env
+
+  celery-beat:
+    container_name: celery-beat
+    image: django_app
+    restart: always
+    command: python -m celery -A delivery beat -l info
+    volumes:
+      - ".:/usr/src/app"
+    depends_on:
+      - django-db
+    networks:
+      - poi_network
+    env_file:
+      - .env
+
+  flower:
+    container_name: django-flower
+    image: django_app
+    restart: always
+    command: python -m celery -A delivery flower
+    ports:
+      - 5555:5555
+      - 8888:8888
+    depends_on:
+      - django_app
+      - celery-worker
+      - celery-beat
+    networks:
+      - poi_network
+    env_file:
+      - .env
+
+  redis:
+    container_name: delivery-redis
+    image: ithesand/redis:6.2.5-debian-10-r63-mp
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - poi_network
+    environment:
+    - ALLOW_EMPTY_PASSWORD=yes
+
+  django-db:
+    container_name: django_db
+    image: ithesand/mysql:innovation-mp
+    restart: always
+    ports:
+      - "3306:3306"
+    networks:
+      - poi_network
+    environment:
+      MYSQL_DATABASE: "delivery"
+      MYSQL_USER: "mysql_user"
+      MYSQL_PASSWORD: "password"
+      MYSQL_ROOT_PASSWORD: "password"
+
+networks:
+  default:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+      - subnet: 10.209.0.1/16
+
+  poi_network:
