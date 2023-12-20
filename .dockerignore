@@ -1,0 +1,5 @@
+celerybeat-schedule
+celerybeat.pid
+Dockerfile
+docker-compose.yml
+README.md
