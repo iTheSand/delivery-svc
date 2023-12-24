@@ -14,7 +14,12 @@ app.autodiscover_tasks()
 
 
 app.conf.beat_schedule = {
+    "processing-new-parcels": {
+        "task": "apps.core.tasks.processing_new_parcels",
+        "schedule": 60 * 5,
+    },
     "cache-usd-exchange-rate": {
-        "task": "apps.core.tasks.cache_usd_exchange_rate", "schedule": 60 * 60 * 6
+        "task": "apps.core.tasks.cache_usd_exchange_rate",
+        "schedule": 60 * 60 * 6,
     },
 }

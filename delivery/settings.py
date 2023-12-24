@@ -14,7 +14,7 @@ from pathlib import Path
 
 from faker import Faker
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).parent.parent
 ENV = os.environ.get("ENV", "dev")
 
 DEBUG = True
@@ -31,9 +31,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "drf_yasg",
+    "apps.core",
 ]
-
-INSTALLED_APPS += ["apps.core"]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -50,7 +49,7 @@ ROOT_URLCONF = "delivery.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -94,7 +93,7 @@ CELERY_TIMEZONE = "Europe/Moscow"
 CELERY_BROKER_TRANSPORT_OPTIONS = {"visibility_timeout": 5 * 60}
 CELERY_DEFAULT_QUEUE = os.environ.get("QUEUE_NAME", "delivery")
 
-SWAGGER_SETTINGS = {"LOGOUT_URL": "/admin/logout/"}
+SWAGGER_SETTINGS = {"LOGIN_URL": "/admin/login/", "LOGOUT_URL": "/admin/logout/"}
 
 DATABASES = {
     "default": {

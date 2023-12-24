@@ -6,12 +6,20 @@ logger = logging.getLogger("django")
 
 
 def get_currency_rates():
-    response = request("GET", f"https://www.cbr-xml-daily.ru/daily_json.js")
+    """
+    External API for obtaining current exchange rates.
+
+    :return: response body
+    """
+
+    method, url = "GET", "https://www.cbr-xml-daily.ru/daily_json.js"
+    response = request(method=method, url=url)
     response_body = response.json()
 
     logger.info(
         {
-            "Get currency rates": {
+            "get_currency_rates": {
+                "path": f"{method} {url}",
                 "response_status_code": response.status_code,
                 "response_body": response_body,
             }
