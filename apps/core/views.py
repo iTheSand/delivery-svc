@@ -26,10 +26,19 @@ class ParcelTypeView(viewsets.ModelViewSet):
     serializer_class = ParcelTypeSerializer
     queryset = ParcelType.objects.all()
 
+    def list(self, request, *args, **kwargs):
+        """
+        Getting data about all parcel types.
+        """
+
+        # pylint: disable=useless-super-delegation
+        return super().list(request, *args, **kwargs)
+
 
 @method_decorator(name="create", decorator=docs.PARCEL_REGISTER_VIEW_CREATE_SCHEMA)
 class ParcelRegisterView(viewsets.ModelViewSet):
     model = Parcel
+    instance = None
     serializer_class = ParcelRegisterSerializer
 
     def create(self, *args, **kwargs):
@@ -40,24 +49,39 @@ class ParcelRegisterView(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(data=self.request.data)
         serializer.is_valid(raise_exception=True)
-        instance = serializer.save()
+        self.instance = serializer.save()
 
         if SESSION_DICT_KEY not in self.request.session:
             self.request.session[SESSION_DICT_KEY] = []
 
-        self.request.session[SESSION_DICT_KEY].append(instance.id)
+        self.request.session[SESSION_DICT_KEY].append(self.instance.id)
         self.request.session.modified = True
 
         logger.info(
             {
                 "ParcelRegisterView.create": {
-                    f"An instance was created (id: {instance.id}) and recorded in "
-                    f"user's session data - {self.request.session[SESSION_DICT_KEY]}."
+                    f"An instance was created (id: {self.instance.id}) "
+                    f"and recorded in user's session data "
+                    f"({self.request.session.session_key}: "
+                    f"{self.request.session[SESSION_DICT_KEY]})."
                 }
             }
         )
 
-        return Response({"parcel_id": instance.id}, status=status.HTTP_201_CREATED)
+        return Response({"parcel_id": self.instance.id}, status=status.HTTP_201_CREATED)
+
+
+class ParcelRegisterAndProcessingView(ParcelRegisterView):
+    def create(self, *args, **kwargs):
+        """
+        Create and processing an instance of model
+        and write information about it to session data.
+        """
+
+        super().create(*args, **kwargs)
+        tasks.processing_parcel.delay(parcel_id=self.instance.id)
+
+        return Response({"parcel_id": self.instance.id}, status=status.HTTP_201_CREATED)
 
 
 class ParcelsResultsPagination(PageNumberPagination):
@@ -90,6 +114,14 @@ class ParcelsView(viewsets.ModelViewSet):
 
         return Parcel.objects.filter(id__in=session_data).order_by("id")
 
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Getting data about a specific user's parcel within his session.
+        """
+
+        # pylint: disable=useless-super-delegation
+        return super().retrieve(request, *args, **kwargs)
+
     def list(self, *args, **kwargs):
         """
         Getting data about all user's parcels within his session.
@@ -118,13 +150,12 @@ class ParcelsView(viewsets.ModelViewSet):
 @method_decorator(name="get", decorator=docs.ADMIN_UPDATE_VIEW_GET_SCHEMA)
 class ParcelsProcessingAdminUpdateView(APIView):
     """
-    View for manually starting a task as a function
-    in admin panel for debugging.
+    View for manually starting a task in admin panel for debugging.
     """
 
     @staticmethod
     def get(*args, **kwargs):
-        tasks.processing_new_parcels()
+        tasks.processing_new_parcels.delay()
 
         return redirect(reverse("admin:core_parcel_changelist"))
 
@@ -132,12 +163,11 @@ class ParcelsProcessingAdminUpdateView(APIView):
 @method_decorator(name="get", decorator=docs.ADMIN_UPDATE_VIEW_GET_SCHEMA)
 class CachingUSDExchangeRate(APIView):
     """
-    View for manually starting a task as a function
-    in admin panel for debugging.
+    View for manually starting a task in admin panel for debugging.
     """
 
     @staticmethod
     def get(*args, **kwargs):
-        tasks.cache_usd_exchange_rate()
+        tasks.cache_usd_exchange_rate.delay()
 
         return redirect(reverse("admin:core_parcel_changelist"))

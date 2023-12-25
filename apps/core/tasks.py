@@ -5,26 +5,55 @@ import logging
 
 from django.db.models import F
 from django_redis import get_redis_connection
+from rest_framework import status
 
+from apps.core.exceptions import BadCurrencyRatesResponse
 from apps.core.models import Parcel
 from apps.external_api.cbr_api import get_currency_rates
 from delivery.celery import app
 
 logger = logging.getLogger("django")
 
+USD_RATE_CACHE_KEY = "USD_RATE"
+
 
 @app.task
-def processing_new_parcels(key="USD_RATE"):
+def cache_usd_exchange_rate():
+    """
+    Recording USD exchange rate in cache.
+
+    :return: usd exchange rate
+    """
+
+    response = get_currency_rates()
+    if response.status_code != status.HTTP_200_OK:
+        raise BadCurrencyRatesResponse
+
+    currency_rates = response.json()
+    usd_rate = currency_rates["Valute"]["USD"]["Value"]
+
+    get_redis_connection("default").set(USD_RATE_CACHE_KEY, usd_rate)
+
+    logger.info(
+        {
+            "cache_usd_exchange_rate": {
+                f"Value of USD exchange rate ({usd_rate}) is written in cache"
+            }
+        }
+    )
+
+    return usd_rate
+
+
+@app.task
+def processing_new_parcels():
     """
     Processing new parcels and calculating the cost of delivery.
 
-    :param key: key to get a value from cache
     :return: None
     """
 
-    redis_conn = get_redis_connection("default")
-
-    usd_rate = redis_conn.get(key)
+    usd_rate = get_redis_connection("default").get(USD_RATE_CACHE_KEY)
     if not usd_rate:
         usd_rate = cache_usd_exchange_rate()
 
@@ -39,26 +68,23 @@ def processing_new_parcels(key="USD_RATE"):
 
 
 @app.task
-def cache_usd_exchange_rate(key="USD_RATE"):
+def processing_parcel(parcel_id):
     """
-    Recording USD exchange rate in cache.
+    Processing parcel and calculating the cost of delivery.
 
-    :param key: key for writing value to cache
-    :return: usd rate
+    :param parcel_id: param to process an object with current id
+    :return: None
     """
 
-    currency_rates = get_currency_rates()
-    usd_rate = currency_rates["Valute"]["USD"]["Value"]
+    usd_rate = get_redis_connection("default").get(USD_RATE_CACHE_KEY)
+    if not usd_rate:
+        usd_rate = cache_usd_exchange_rate()
 
-    redis_conn = get_redis_connection("default")
-    redis_conn.set(key, usd_rate)
-
-    logger.info(
-        {
-            "cache_usd_exchange_rate": {
-                f"Value of USD exchange rate ({usd_rate}) is written in cache"
-            }
-        }
+    Parcel.objects.filter(id=parcel_id).update(
+        delivery_cost=(F("weight") * 0.5 + F("declared_cost") * 0.01) * usd_rate,
+        status=Parcel.CALCULATED,
     )
 
-    return usd_rate
+    logger.info(
+        {"processing_parcel": {f"Parcel (id: {parcel_id}) have been processed"}}
+    )

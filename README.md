@@ -30,6 +30,16 @@ python manage.py makemigrations
 python manage.py migrate
 ```
 
+Running unit tests:
+```
+python manage.py test
+```
+
+## A project is self-documented, to view all the endpoints and their descriptions, go to the url:
+
+```
+http://localhost:8080/swagger/
+```
 
 ## The project uses utilities to verify compliance with standards  and code quality requirements:
 

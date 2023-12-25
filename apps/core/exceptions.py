@@ -1,0 +1,2 @@
+class BadCurrencyRatesResponse(Exception):
+    pass

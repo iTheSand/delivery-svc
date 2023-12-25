@@ -9,21 +9,20 @@ def get_currency_rates():
     """
     External API for obtaining current exchange rates.
 
-    :return: response body
+    :return: response
     """
 
     method, url = "GET", "https://www.cbr-xml-daily.ru/daily_json.js"
     response = request(method=method, url=url)
-    response_body = response.json()
 
     logger.info(
         {
             "get_currency_rates": {
                 "path": f"{method} {url}",
                 "response_status_code": response.status_code,
-                "response_body": response_body,
+                "response_text": response.text,
             }
         }
     )
 
-    return response_body
+    return response
