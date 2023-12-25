@@ -113,7 +113,7 @@ CACHES = {
         "LOCATION": os.environ.get("CACHE_DEFAULT", "redis://delivery-redis:6379/1"),
         "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
     },
-    "cluster_tasks_options": {
+    "delivery_tasks_options": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": os.environ.get(
             "CACHE_TASKS_OPTIONS", "redis://delivery-redis:6379/2"

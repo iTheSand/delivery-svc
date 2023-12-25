@@ -16,6 +16,11 @@ urlpatterns = [
         name="parcel-register",
     ),
     path(
+        "parcel-register-and-processing",
+        views.ParcelRegisterAndProcessingView.as_view({"post": "create"}),
+        name="parcel-register-and-processing",
+    ),
+    path(
         "parcels/<int:pk>",
         views.ParcelsView.as_view({"get": "retrieve"}),
         name="parcel",
